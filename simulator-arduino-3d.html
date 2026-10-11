@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulator Arduino 3D</title>
+<style>
+:root{--pcb:#0e3b2c;--pcb2:#14503c;--silk:#e9f1ea;--cu:#d6993f;--ink:#0b1210;--led:#ff4d3d;--grn:#37e08a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--silk);font:15px/1.5 system-ui,sans-serif;padding:12px;max-width:1100px;margin-inline:auto}
+h1{font:700 1.2rem ui-monospace,Menlo,Consolas,monospace;margin:4px 0 12px;color:var(--cu)}
+.wrap{display:grid;gap:12px}
+@media(min-width:900px){.wrap{grid-template-columns:1fr 1fr;align-items:start}}
+.panel{background:var(--pcb);border:2px solid var(--pcb2);border-radius:10px;padding:12px;margin-bottom:12px}
+.panel h2{font-size:.9rem;margin:0 0 8px;font-weight:600}
+select,button{font:inherit;border-radius:8px;border:0;padding:9px 12px}
+select{width:100%;background:var(--pcb2);color:var(--silk);margin-bottom:8px}
+textarea{width:100%;height:320px;background:#07110d;color:#d8f5e3;border:1px solid var(--pcb2);border-radius:8px;padding:10px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;tab-size:2;resize:vertical}
+.row{display:flex;gap:8px;margin-top:8px}
+.row button{flex:1;font-weight:600}
+#run{background:var(--grn);color:#052214}#stop{background:var(--led);color:#fff}#reset,#unduh{background:var(--pcb2);color:var(--silk)}
+button:disabled{opacity:.4}
+#pesan{color:#ffb4a8;font:13px ui-monospace,monospace;margin-top:8px;white-space:pre-wrap}
+details{margin-top:10px;font-size:.88rem}summary{cursor:pointer;font-weight:600;color:var(--cu)}
+details ol{padding-left:20px;margin:6px 0}code{background:#07110d;padding:1px 5px;border-radius:4px}
+#stage{position:relative;height:320px;perspective:1000px;background:radial-gradient(ellipse at 50% 35%,#1d4a3a,#07110d 70%);border-radius:10px;overflow:hidden;touch-action:none;cursor:grab}
+#board{position:absolute;left:50%;top:50%;width:360px;height:262px;margin:-131px 0 0 -180px;transform-style:preserve-3d}
+.ob{position:absolute;transform-style:preserve-3d;transform:translateZ(6px);touch-action:none}
+.pcb{transform:none}.ly{position:absolute;inset:0}
+.shd{position:absolute;left:-12px;top:-8px;width:384px;height:282px;background:#000;opacity:.55;filter:blur(16px);transform:translateZ(-14px)}
+.lb{position:absolute;font:700 10px ui-monospace,monospace;color:var(--silk);opacity:.85;transform:translateZ(7px);white-space:nowrap}
+.dg{position:absolute;left:11px;top:15px;width:70px;height:120px;transform:translateZ(11px)}
+.seg{position:absolute;background:#2b1010;transition:background .08s}
+.seg.on{background:var(--led);box-shadow:0 0 10px var(--led)}
+.a{top:0;left:10px;width:50px;height:10px}.b{top:8px;right:0;width:10px;height:46px}.c{bottom:8px;right:0;width:10px;height:46px}
+.d{bottom:0;left:10px;width:50px;height:10px}.e{bottom:8px;left:0;width:10px;height:46px}.f{top:8px;left:0;width:10px;height:46px}.g{top:55px;left:10px;width:50px;height:10px}
+.lt{position:absolute;inset:5px;border-radius:50%;transform:translateZ(9px);opacity:.15}
+.hole{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px;border-radius:50%;background:#000;transform:translateZ(13px)}
+.rg{position:absolute;inset:0;border:2px solid var(--cu);border-radius:50%;opacity:0;transform:translateZ(13px)}
+.ob.on .rg{animation:ping .9s infinite}.ob.on{animation:shk .08s infinite}
+@keyframes ping{0%{opacity:.9;transform:translateZ(13px) scale(1)}100%{opacity:0;transform:translateZ(13px) scale(2.3)}}
+@keyframes shk{50%{transform:translateZ(6px) translate(1px,1px)}}
+.kt{position:absolute;inset:0;transform:translateZ(13px) rotate(0deg)}
+.kt::after{content:'';position:absolute;left:50%;top:4px;width:5px;height:18px;margin-left:-2.5px;background:#e0592f;border-radius:3px}
+.sl{margin-top:10px;font-size:.85rem}.sl input{width:100%}
+pre{margin:0;background:#07110d;border-radius:8px;padding:10px;height:150px;overflow:auto;font:13px ui-monospace,monospace;white-space:pre-wrap}
+.legend{font-size:.8rem;color:#b9cfc2;margin:8px 0 0}
+.ch{display:block;width:100%;text-align:left;background:var(--pcb2);color:var(--silk);margin-top:6px;font-weight:600}
+.ch small{display:block;font-weight:400;color:#b9cfc2}.ch.on{outline:2px solid var(--cu)}
+.fld{width:100%;margin-bottom:8px;padding:9px 12px;border:0;border-radius:8px;background:#07110d;color:var(--silk);font:inherit}
+</style>
+</head>
+<body>
+<h1>Simulator Arduino 3D</h1>
+<div class="wrap">
+<section class="panel">
+  <h2>Program (bahasa Arduino)</h2>
+  <select id="contoh"></select>
+  <textarea id="kode" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+  <div class="row"><button id="run">Jalankan</button><button id="stop" disabled>Berhenti</button><button id="reset">Reset</button></div>
+  <div class="row"><button id="unduh">Simpan sebagai file .ino</button></div>
+  <div id="pesan"></div>
+  <details open><summary>Tantangan mandiri (10 tantangan mudah)</summary><div id="tantangan"></div></details>
+  <details><summary>Contekan perintah</summary>
+    <p><code>pinMode(pin, OUTPUT)</code> <code>INPUT_PULLUP</code><br>
+    <code>digitalWrite(pin, HIGH)</code> <code>digitalRead(pin)</code><br>
+    <code>analogWrite(pin, 0-255)</code> <code>analogRead(A0)</code><br>
+    <code>delay(ms)</code> <code>millis()</code><br>
+    <code>tone(10, 1000)</code> <code>noTone(10)</code><br>
+    <code>map()</code> <code>constrain()</code> <code>random()</code> <code>Serial.println()</code></p>
+    <p>Pin: seven segment a-g = 2-8, LED kuning 9, LED hijau 12, LED merah 13, buzzer 10, tombol 11, knob A0 dan A1.</p>
+  </details>
+  <div class="panel" style="margin-top:12px">
+    <h2>Kirim ke guru</h2>
+    <input class="fld" id="nama" placeholder="Nama lengkap" autocomplete="name">
+    <input class="fld" id="kelas" placeholder="Kelas">
+    <div class="legend" id="pilih">Tantangan: belum dipilih. Pilih salah satu tantangan di atas.</div>
+    <div class="row"><button id="kirim">Kirim ke guru</button><button id="salin">Salin kode</button></div>
+    <div class="legend" id="info"></div>
+  </div>
+</section>
+<section>
+  <div class="panel">
+    <h2>Papan 3D</h2>
+    <div id="stage"><div id="board"></div></div>
+    <p class="legend">Seret area kosong untuk memutar papan, ketuk dua kali untuk mengembalikan. Seret knob A0 dan A1 untuk mengubah sensor. Tekan tombol kuning untuk input.</p>
+    <div class="sl">Sensor A0: <b id="v0">512</b><input type="range" id="s0" min="0" max="1023" value="512"></div>
+    <div class="sl">Sensor A1: <b id="v1">512</b><input type="range" id="s1" min="0" max="1023" value="512"></div>
+  </div>
+  <div class="panel"><h2>Serial Monitor</h2><pre id="ser"></pre></div>
+</section>
+</div>
+<script>
+// ===== PENGATURAN GURU (isi sekali) =====
+// url      : alamat Google Form berakhiran /formResponse (ganti /viewform dengan /formResponse)
+// nama dst : kode entry.xxxxxxxxx tiap kolom di Google Form (lihat panduan di chat)
+const FORM={url:'https://docs.google.com/forms/d/e/1FAIpQLScJwy2HCoHCsLn-bSWJx_cOC1QsU_X9kOsVM9CGMDToqHXrcA/formResponse',nama:'entry.120110565',kelas:'entry.2101499589',tantangan:'entry.1456170995',kode:'entry.1200916341'};
+// ========================================
+
+const $=id=>document.getElementById(id);
+const ANGKA='byte angka[10][7] = {\n  {1,1,1,1,1,1,0}, {0,1,1,0,0,0,0}, {1,1,0,1,1,0,1}, {1,1,1,1,0,0,1}, {0,1,1,0,0,1,1},\n  {1,0,1,1,0,1,1}, {1,0,1,1,1,1,1}, {1,1,1,0,0,0,0}, {1,1,1,1,1,1,1}, {1,1,1,1,0,1,1}\n};\n';
+const COMMON='int segPin[7] = {2, 3, 4, 5, 6, 7, 8};\n'+ANGKA+'\nvoid tampil(int n) {\n  for (int i = 0; i < 7; i++) {\n    digitalWrite(segPin[i], angka[n][i]);\n  }\n}\n\n';
+const SETSEG='  for (int i = 0; i < 7; i++) {\n    pinMode(segPin[i], OUTPUT);\n  }\n';
+const EX={
+'1. LED berkedip':'void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(500);\n  digitalWrite(13, LOW);\n  delay(500);\n}\n',
+'2. Seven segment menghitung 0-9':COMMON+'void setup() {\n'+SETSEG+'}\n\nvoid loop() {\n  for (int n = 0; n < 10; n++) {\n    tampil(n);\n    delay(500);\n  }\n}\n',
+'3. Sensor + seven segment + buzzer':COMMON+'void setup() {\n'+SETSEG+'  pinMode(10, OUTPUT);\n  pinMode(13, OUTPUT);\n  Serial.begin(9600);\n}\n\nvoid loop() {\n  int nilai = analogRead(A0);\n  int level = map(nilai, 0, 1023, 0, 9);\n  tampil(level);\n  Serial.println(level);\n  if (level > 6) {\n    tone(10, 1000);\n    digitalWrite(13, HIGH);\n  } else {\n    noTone(10);\n    digitalWrite(13, LOW);\n  }\n  delay(100);\n}\n',
+'4. Penghitung dengan tombol':COMMON+'int hitung = 0;\nint terakhir = HIGH;\n\nvoid setup() {\n'+SETSEG+'  pinMode(11, INPUT_PULLUP);\n  tampil(0);\n}\n\nvoid loop() {\n  int s = digitalRead(11);\n  if (s == LOW && terakhir == HIGH) {\n    hitung++;\n    if (hitung > 9) hitung = 0;\n    tampil(hitung);\n  }\n  terakhir = s;\n  delay(20);\n}\n'
+};
+Object.keys(EX).forEach(k=>{const o=document.createElement('option');o.textContent=k;$('contoh').appendChild(o)});
+$('contoh').onchange=()=>{stop();$('kode').value=EX[$('contoh').value];resetHw()};
+$('kode').value=EX['1. LED berkedip'];
+
+// ---- papan virtual 3D
+const duty=new Array(20).fill(0);let btn=false,toneF=0,runId=0,t0=0,sbuf='',ac,osc;
+const board=$('board'),stage=$('stage');let rx=52,rz=-18;
+function view(){const sc=Math.min(1.15,stage.clientWidth/430);board.style.transform=`rotateX(${rx}deg) rotateZ(${rz}deg) scale(${sc})`}
+function ext(x,y,w,h,r,side,top,d){
+  const g=document.createElement('div');g.className='ob';
+  g.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+  for(let i=0;i<d;i++){const l=document.createElement('div');l.className='ly';l.style.cssText=`border-radius:${r};background:${i==d-1?top:side};transform:translateZ(${i}px)`;g.appendChild(l)}
+  board.appendChild(g);return g}
+function lab(t,x,y){const l=document.createElement('div');l.className='lb';l.textContent=t;l.style.cssText=`left:${x}px;top:${y}px`;board.appendChild(l)}
+board.insertAdjacentHTML('beforeend','<div class="shd"></div>');
+const pcb=ext(0,0,360,262,'12px','#0a2a1f','repeating-linear-gradient(90deg,transparent 0 22px,rgba(214,153,63,.14) 22px 23px),repeating-linear-gradient(0deg,transparent 0 22px,rgba(214,153,63,.14) 22px 23px),#14503c',6);
+pcb.classList.add('pcb');
+const sg=ext(16,24,92,150,'8px','#050807','#000',10);
+const dg=document.createElement('div');dg.className='dg';sg.appendChild(dg);
+const SEG='abcdefg'.split('').map(n=>{const e=document.createElement('div');e.className='seg '+n;dg.appendChild(e);return e});
+lab('a-g = pin 2-8',16,180);
+const LED=[[9,'#ffc83d',130],[12,'#37e08a',190],[13,'#ff4d3d',250]].map(([p,c,x])=>{
+  const g=ext(x,34,40,40,'50%','#1a1f1d','#2a302d',8);
+  const t=document.createElement('div');t.className='lt';t.style.background='radial-gradient(circle at 35% 30%,#fff9,transparent 40%),'+c;g.appendChild(t);
+  lab(p,x+14,80);return{p,t,c}});
+const bz=ext(130,100,64,64,'50%','#15181a','#222628',12);
+bz.insertAdjacentHTML('beforeend','<i class="hole"></i><i class="rg"></i><i class="rg" style="animation-delay:.3s"></i><i class="rg" style="animation-delay:.6s"></i>');
+lab('10 buzzer',134,170);
+const bt=ext(250,100,64,64,'14px','#8a5a14','#d6993f',10);lab('11 tombol',252,170);
+const bd=()=>{btn=true;bt.style.transform='translateZ(2px)'},bu=()=>{btn=false;bt.style.transform=''};
+bt.onpointerdown=bd;bt.onpointerup=bt.onpointerleave=bt.onpointercancel=bu;
+function setS(i,v){v=Math.max(0,Math.min(1023,Math.round(v)));$('s'+i).value=v;$('v'+i).textContent=v;KN[i].style.transform=`translateZ(13px) rotate(${-135+v/1023*270}deg)`}
+const KN=[0,1].map(i=>{
+  const g=ext(130+i*85,186,52,52,'50%','#2b3a35','#cfd8d3',12),t=document.createElement('i');t.className='kt';g.appendChild(t);
+  lab('A'+i,148+i*85,242);
+  let sx,sy,sv,on=false;
+  g.onpointerdown=e=>{on=true;sx=e.clientX;sy=e.clientY;sv=+$('s'+i).value;g.setPointerCapture(e.pointerId)};
+  g.onpointermove=e=>{if(on)setS(i,sv+(e.clientX-sx-(e.clientY-sy))*4)};
+  g.onpointerup=g.onpointercancel=()=>{on=false};
+  return t});
+$('s0').oninput=()=>setS(0,$('s0').value);$('s1').oninput=()=>setS(1,$('s1').value);setS(0,512);setS(1,512);
+let dr=null;
+stage.onpointerdown=e=>{if(e.target.closest('.ob:not(.pcb)'))return;dr=[e.clientX,e.clientY,rx,rz];stage.setPointerCapture(e.pointerId)};
+stage.onpointermove=e=>{if(!dr)return;rz=dr[3]+(e.clientX-dr[0])*.4;rx=Math.max(8,Math.min(85,dr[2]-(e.clientY-dr[1])*.3));view()};
+stage.onpointerup=stage.onpointercancel=()=>{dr=null};
+stage.ondblclick=()=>{rx=52;rz=-18;view()};
+addEventListener('resize',view);view();
+function render(){
+  SEG.forEach((e,i)=>e.classList.toggle('on',duty[2+i]>0));
+  LED.forEach(l=>{const d=duty[l.p];l.t.style.opacity=.15+.85*d;l.t.style.boxShadow=d>0?`0 0 ${26*d}px ${6*d}px ${l.c}`:'none'});
+  bz.classList.toggle('on',toneF>0||duty[10]>0);
+}
+function resetHw(){duty.fill(0);toneF=0;beep(0);sbuf='';$('ser').textContent='';$('pesan').textContent='';render()}
+function beep(f){try{
+  if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+  if(f>0){if(!osc){osc=ac.createOscillator();osc.type='square';const g=ac.createGain();g.gain.value=.04;osc.connect(g);g.connect(ac.destination);osc.start()}osc.frequency.value=f}
+  else if(osc){osc.stop();osc=null}
+}catch(e){}}
+function out(t){sbuf=(sbuf+t).slice(-3000);$('ser').textContent=sbuf;$('ser').scrollTop=1e9}
+function fmt(v,d){return v===undefined?'':typeof v==='number'?(d!==undefined?v.toFixed(d):Number.isInteger(v)?String(v):v.toFixed(2)):String(v)}
+
+// ---- contoh tambahan, simpan otomatis, unduh
+function addEx(k,v){EX[k]=v;const o=document.createElement('option');o.textContent=k;$('contoh').appendChild(o)}
+addEx('5. Lampu lalu lintas',`void setup() {
+  pinMode(13, OUTPUT);  // merah
+  pinMode(9, OUTPUT);   // kuning
+  pinMode(12, OUTPUT);  // hijau
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(3000);
+  digitalWrite(13, LOW);
+  digitalWrite(12, HIGH);
+  delay(3000);
+  digitalWrite(12, LOW);
+  digitalWrite(9, HIGH);
+  delay(1000);
+  digitalWrite(9, LOW);
+}
+`);
+addEx('6. Lampu bernapas (analogWrite)',`void setup() {
+  pinMode(9, OUTPUT);
+}
+
+void loop() {
+  for (int v = 0; v <= 255; v += 5) {
+    analogWrite(9, v);
+    delay(20);
+  }
+  for (int v = 255; v >= 0; v -= 5) {
+    analogWrite(9, v);
+    delay(20);
+  }
+}
+`);
+addEx('7. Kode kosong (mulai sendiri)',`// Tulis programmu di sini.
+// Pin: seven segment a-g = 2-8, LED kuning 9, LED hijau 12,
+// LED merah 13, buzzer 10, tombol 11, knob A0 dan A1.
+
+void setup() {
+
+}
+
+void loop() {
+
+}
+`);
+try{const s=localStorage.getItem('sa_kode');if(s)$('kode').value=s}catch(e){}
+$('kode').addEventListener('input',()=>{try{localStorage.setItem('sa_kode',$('kode').value)}catch(e){}});
+const oc=$('contoh').onchange;$('contoh').onchange=()=>{oc();$('kode').dispatchEvent(new Event('input'))};
+$('kode').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target;t.setRangeText('  ',t.selectionStart,t.selectionEnd,'end')}});
+$('unduh').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('kode').value],{type:'text/plain'}));a.download='program.ino';a.click()};
+
+// ---- fungsi bawaan Arduino
+function mkApi(id){
+  const chk=()=>{if(id!==runId)throw 'STOP'};
+  return{
+    HIGH:1,LOW:0,INPUT:'INPUT',OUTPUT:'OUTPUT',INPUT_PULLUP:'INPUT_PULLUP',A0:14,A1:15,A2:16,A3:17,A4:18,A5:19,
+    pinMode:(p,m)=>{if(p===11)pm11=m},
+    digitalWrite:(p,v)=>{duty[p]=v?1:0;render()},
+    analogWrite:(p,v)=>{duty[p]=Math.max(0,Math.min(255,v))/255;render()},
+    digitalRead:p=>p===11?((pm11==='INPUT_PULLUP')?(btn?0:1):(btn?1:0)):(duty[p]>0?1:0),
+    analogRead:p=>{const n=p>=14?p-14:p;return n===0?+$('s0').value:n===1?+$('s1').value:0},
+    delay:async ms=>{await new Promise(r=>setTimeout(r,ms));chk()},
+    millis:()=>Math.floor(performance.now()-t0),
+    tone:(p,f)=>{toneF=f;beep(f);render()},noTone:()=>{toneF=0;beep(0);render()},
+    map:(x,a,b,c,d)=>Math.trunc((x-a)*(d-c)/(b-a)+c),
+    constrain:(x,a,b)=>Math.min(b,Math.max(a,x)),
+    random:(a,b)=>b===undefined?Math.floor(Math.random()*a):a+Math.floor(Math.random()*(b-a)),
+    abs:Math.abs,min:Math.min,max:Math.max,pow:Math.pow,sqrt:Math.sqrt,
+    Serial:{begin(){},print:(v,d)=>out(fmt(v,d)),println:(v,d)=>out(fmt(v,d)+'\n')}
+  };
+}
+let pm11='INPUT';
+
+// ---- penerjemah Arduino (C++) ke JavaScript
+function transpile(src){
+  const T='(?:unsigned\\s+)?(?:long|int|byte|float|double|char|bool|boolean|String)';
+  src=src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'').replace(/^\s*#include.*$/gm,'');
+  src=src.replace(/#define\s+(\w+)\s+(.+)/g,'const $1 = $2;');
+  src=src.replace(/\(\s*(?:int|long|byte)\s*\)\s*/g,'0|').replace(/\(\s*(?:float|double)\s*\)\s*/g,'');
+  const defRe=new RegExp('\\b(?:void|'+T+')\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*\\{','g');
+  const names=['delay'];
+  src.replace(defRe,(m,n)=>{names.push(n);return m});
+  names.forEach(n=>{
+    src=src.replace(new RegExp('\\b'+n+'\\s*\\(','g'),(m,off,str)=>
+      /\b(?:void|int|byte|long|float|double|bool|boolean|char|String)\s+$/.test(str.slice(Math.max(0,off-14),off))?m:'await '+m);
+  });
+  src=src.replace(defRe,(m,n,p)=>'async function '+n+'('+p.split(',').map(s=>s.trim().split(/\s+/).pop().replace(/[&*]/g,'')).filter(s=>s&&s!=='void').join(',')+'){');
+  src=src.replace(new RegExp('\\b(?:const\\s+)?'+T+'\\s+(\\w+)\\s*((?:\\[\\s*\\d*\\s*\\]\\s*)+)(?:=\\s*(\\{[\\s\\S]*?\\}))?\\s*;','g'),
+    (m,n,d,init)=>init?'let '+n+' = '+init.replace(/\{/g,'[').replace(/\}/g,']')+';':'let '+n+' = new Array('+(parseInt(d.match(/\d+/))||0)+').fill(0);');
+  src=src.replace(new RegExp('\\b(?:const\\s+)?'+T+'\\s+(?=\\w+\\s*(?:=|;|,|\\)))','g'),'let ');
+  return src+'\nreturn {s: typeof setup==="function"?setup:null, l: typeof loop==="function"?loop:null};';
+}
+
+// ---- menjalankan program
+function setRun(on){$('run').disabled=on;$('stop').disabled=!on}
+function stop(){runId++;toneF=0;beep(0);render();setRun(false)}
+async function run(){
+  stop();resetHw();const id=++runId;t0=performance.now();let prog;
+  try{
+    const api=mkApi(id),AF=Object.getPrototypeOf(async function(){}).constructor;
+    prog=await new AF(...Object.keys(api),transpile($('kode').value))(...Object.values(api));
+  }catch(e){$('pesan').textContent='Kode belum benar: '+e.message+'\nPeriksa tanda ; { } ( ) dan huruf besar kecil.';return}
+  setRun(true);
+  try{
+    if(prog.s)await prog.s();
+    if(!prog.l)throw new Error('fungsi loop() tidak ditemukan');
+    while(id===runId){await prog.l();await new Promise(r=>setTimeout(r,1))}
+  }catch(e){if(e!=='STOP')$('pesan').textContent='Program berhenti karena error: '+(e.message||e)}
+  if(id===runId)setRun(false);
+}
+$('run').onclick=run;$('stop').onclick=stop;$('reset').onclick=()=>{stop();resetHw()};
+render();
+
+// ---- 10 tantangan mandiri + kirim ke guru
+const CH=[
+['Nyalakan LED merah','Buat LED merah (pin 13) menyala terus.','Pakai pinMode(13, OUTPUT) di setup(), lalu digitalWrite(13, HIGH).'],
+['LED hijau berkedip','LED hijau (pin 12) menyala 1 detik, mati 1 detik, berulang.','delay(1000) menunggu 1 detik.'],
+['Dua LED bergantian','LED merah dan hijau menyala bergantian setiap 0,5 detik.','Saat satu LED HIGH, LED lainnya LOW.'],
+['Lampu lalu lintas','Merah 3 detik, hijau 3 detik, kuning 1 detik, lalu ulangi.','Merah pin 13, kuning pin 9, hijau pin 12.'],
+['Buzzer putus-putus','Buzzer (pin 10) berbunyi 1 detik, diam 1 detik.','tone(10, 1000) menyalakan, noTone(10) mematikan.'],
+['Tombol menyalakan LED','LED merah menyala selama tombol (pin 11) ditekan.','Pakai pinMode(11, INPUT_PULLUP). Tombol ditekan = LOW. Gunakan if dan else.'],
+['Tampilkan angka 5','Seven segment menampilkan angka 5 terus-menerus.','Angka 5 = segmen a, c, d, f, g. Pin: a=2, b=3, c=4, d=5, e=6, f=7, g=8.'],
+['Angka 1, 2, 3 bergantian','Seven segment menampilkan 1, 2, 3 bergantian tiap 1 detik.','1 = b,c. 2 = a,b,d,e,g. 3 = a,b,c,d,g. Atur semua 7 segmen setiap kali ganti angka.'],
+['Knob mengatur LED','Jika knob A0 lebih dari 512, LED hijau menyala; jika tidak, mati.','analogRead(A0) menghasilkan 0 sampai 1023. Gunakan if dan else.'],
+['Alarm cahaya','Jika knob A1 kurang dari 300, buzzer berbunyi dan LED merah menyala.','Pakai if dan else. Jangan lupa noTone(10) saat kondisi aman.']
+];
+let cur=-1,sent=[];
+try{sent=JSON.parse(localStorage.getItem('sa_sent')||'[]');$('nama').value=localStorage.getItem('sa_nama')||'';$('kelas').value=localStorage.getItem('sa_kelas')||''}catch(e){}
+function info(t){$('info').textContent=t}
+function daftar(){
+  $('tantangan').innerHTML='';
+  CH.forEach((c,i)=>{
+    const b=document.createElement('button');b.className='ch'+(i===cur?' on':'');
+    b.innerHTML=`${sent.includes(i)?'✔ ':''}${i+1}. ${c[0]}<small>${c[1]}</small>`;
+    b.onclick=()=>{
+      try{localStorage.setItem('sa_c'+cur,$('kode').value)}catch(e){}
+      stop();resetHw();cur=i;
+      let simpan=null;try{simpan=localStorage.getItem('sa_c'+i)}catch(e){}
+      $('kode').value=simpan||`// Tantangan ${i+1}: ${c[0]}\n// ${c[1]}\n// Petunjuk: ${c[2]}\n\nvoid setup() {\n\n}\n\nvoid loop() {\n\n}\n`;
+      $('kode').dispatchEvent(new Event('input'));
+      $('pilih').textContent=`Tantangan ${i+1}: ${c[0]}`;info('');daftar();
+    };
+    $('tantangan').appendChild(b);
+  });
+}
+daftar();
+$('kirim').onclick=async()=>{
+  const nama=$('nama').value.trim(),kelas=$('kelas').value.trim();
+  if(!nama||!kelas){info('Isi nama dan kelas dulu.');return}
+  if(cur<0){info('Pilih satu tantangan dulu.');return}
+  if(!FORM.url){info('Guru belum memasang tautan Google Form. Gunakan tombol Simpan sebagai file .ino.');return}
+  try{localStorage.setItem('sa_nama',nama);localStorage.setItem('sa_kelas',kelas)}catch(e){}
+  const p=new URLSearchParams();
+  p.set(FORM.nama,nama);p.set(FORM.kelas,kelas);p.set(FORM.tantangan,`${cur+1}. ${CH[cur][0]}`);p.set(FORM.kode,$('kode').value);
+  info('Mengirim...');
+  try{
+    await fetch(FORM.url,{method:'POST',mode:'no-cors',body:p});
+    if(!sent.includes(cur))sent.push(cur);
+    try{localStorage.setItem('sa_sent',JSON.stringify(sent))}catch(e){}
+    info('Terkirim. Kalau ragu, tanyakan ke guru apakah jawabanmu sudah masuk.');daftar();
+  }catch(e){info('Gagal mengirim. Periksa internet, lalu coba lagi.')}
+};
+$('salin').onclick=async()=>{
+  try{await navigator.clipboard.writeText($('kode').value);info('Kode sudah disalin.')}
+  catch(e){$('kode').select();info('Salin manual: kode sudah dipilih, tekan Salin di HP.')}
+};
+</script>
+</body>
+</html>
